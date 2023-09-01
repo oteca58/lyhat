@@ -17,6 +17,8 @@ use tui::{
     Frame, Terminal,
 };
 use unicode_width::UnicodeWidthStr;
+use std::net::{TcpListener, TcpStream};
+use std::thread;
 
 /// App holds the state of the application
 struct App {
@@ -35,7 +37,33 @@ impl Default for App {
     }
 }
 
+    
+
 fn main() -> Result<(), Box<dyn Error>> {
+
+    //Start thred for listener
+    let res_thread = thread::spawn(move || {
+	
+	//Start listener
+	let listener = TcpListener::bind("127.0.0.1:8080").unwrap();
+
+	// accept connections and process them serially
+	for stream in listener.incoming() {
+        match stream {
+            Ok(stream) => {
+                handle_client(stream);
+            }
+            Err(e) => { /* connection failed */ }
+        }
+	}
+    }
+
+    );
+
+
+
+    
+
     // setup terminal
     enable_raw_mode()?;
     let mut stdout = io::stdout();
@@ -151,4 +179,8 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &App) {
     let messages =
         List::new(messages).block(Block::default().borders(Borders::ALL).title("Messages"));
     f.render_widget(messages, chunks[1]);
+}
+
+fn handle_client(stream: TcpStream) {
+    todo!()
 }
