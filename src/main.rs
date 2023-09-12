@@ -1,3 +1,4 @@
+#![allow(warnings, unused)]
 use crossterm::{
     event::{
         self, read, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEvent,
@@ -7,7 +8,7 @@ use crossterm::{
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
-use std::{error::Error, io};
+use std::{error::Error, io, io::Read};
 use tui::{
     backend::{Backend, CrosstermBackend},
     layout::{Constraint, Direction, Layout},
@@ -39,30 +40,7 @@ impl Default for App {
 
     
 
-fn main() -> Result<(), Box<dyn Error>> {
-
-    //Start thred for listener
-    let res_thread = thread::spawn(move || {
-	
-	//Start listener
-	let listener = TcpListener::bind("127.0.0.1:8080").unwrap();
-
-	// accept connections and process them serially
-	for stream in listener.incoming() {
-        match stream {
-            Ok(stream) => {
-                handle_client(stream);
-            }
-            Err(e) => { /* connection failed */ }
-        }
-	}
-    }
-
-    );
-
-
-
-    
+fn main() -> Result<(), Box<dyn Error>> {    
 
     // setup terminal
     enable_raw_mode()?;
@@ -93,6 +71,25 @@ fn main() -> Result<(), Box<dyn Error>> {
 }
 
 fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Result<()> {
+    //Start thred for listener
+    let res_thread = thread::spawn(move || {
+	
+	//Start listener
+	let listener = TcpListener::bind("127.0.0.1:8080").unwrap();
+
+	// accept connections and process them serially
+	for stream in listener.incoming() {
+        match stream {
+            Ok(stream) => {
+                handle_client(stream, app);
+            }
+            Err(e) => { /* connection failed */ }
+        }
+	}
+    }
+
+    );
+    
     loop {
         terminal.draw(|f| ui(f, &app))?;
         match read().unwrap() {
@@ -181,6 +178,16 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &App) {
     f.render_widget(messages, chunks[1]);
 }
 
-fn handle_client(stream: TcpStream) {
-    todo!()
+//what happen when the server receive a tx
+fn handle_client(mut stream: TcpStream, app: App) {
+    const MESSAGE_SIZE: usize = 10;
+    let mut rx_bytes = [0u8; MESSAGE_SIZE];
+    // Array with a fixed size
+    let mut rx_bytes = [0u8; MESSAGE_SIZE];
+    // Read from the current data in the TcpStream
+    stream.read(&mut rx_bytes).unwrap();
+
+    let received = std::str::from_utf8(&rx_bytes).expect("valid utf8");
+    app.messages.push(String::from(received));
+    eprintln!("{}", received);
 }
